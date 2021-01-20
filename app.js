@@ -7,6 +7,7 @@ const app = express();
 const port = 3000;
 
 var middleware = function (req, res, next) {
+  console.log(req.buf);
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
@@ -15,33 +16,15 @@ var middleware = function (req, res, next) {
   next();
 };
 
-// enable files upload
-app.use(
-  fileUpload({
-    createParentPath: true,
-  })
-);
-
-//add other middleware
 app.use(cors({ origin: true, credentials: true }));
 // app.use(middleware);
 
-// var options = {
-//   inflate: true,
-//   limit: '10000kb',
-//   type: 'application/octet-stream'
-// };
-// app.use(bodyParser.raw(options));
 
-
-app.use(bodyParser.json({
-  verify: (req, res, buf) => {
-    console.log({req, res, buf});
-    req.rawBody = buf
-  }
-}))
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.raw());
+app.use(bodyParser.raw({
+  inflate: true,
+  limit: "50mb",
+  type: "application/octet-stream",
+}));
 
 app.use(morgan("dev"));
 
@@ -50,14 +33,28 @@ app.get("/", (req, res) => {
 });
 
 app.put("/upload", (req, res) => {
-  var contype = req.headers['content-type'];
-  console.log(contype);
+  try {
+    var contype = req.headers["content-type"];
+    console.log(contype);
 
-  console.log(req);
-  console.log(req.rawBody);
+    // console.log(req);
+    console.log(req.body);
+
+    res.status(200).send({
+      status: true,
+      message: "blind success",
+    });
+  } catch (e) {
+    console.log(e);
+    res.status(200).send({
+      status: true,
+      message: "error, but give 200 anyway",
+    });
+  }
+  return;
 
   if (!req.files) {
-    console.log("no files!");
+    console.log("[no files!");
     res.status(400).send({
       status: false,
       message: "No file uploaded",
