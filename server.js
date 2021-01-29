@@ -5,15 +5,14 @@ const Utils = require("./utils");
 
 const WebSocket = require("ws");
 const http = require("http");
+const fs = require("fs");
 
-const HTTP_SERVER_PORT = 3000;
-const WS_SERVER_PORT = 3001;
+const PORT = 3000;
 
 /**
  * Setup simple http server
  */
-console.log("Starting http server on port " + HTTP_SERVER_PORT);
-http
+const server = http
   .createServer(function (req, res) {
     const headers = {
       "Access-Control-Allow-Origin": "*",
@@ -34,7 +33,8 @@ http
 
     // Add path (minus url params) and params to request obj
     req.path = req.url.split("?")[0];
-    req.params = req.url.split("?").length > 1 ? Utils.parseUrlParams(req.url) : {};
+    req.params =
+      req.url.split("?").length > 1 ? Utils.parseUrlParams(req.url) : {};
 
     // Add request handlers here
     if (req.method == "GET" && req.path == "/") {
@@ -50,14 +50,14 @@ http
       console.log(`Request ${req.method} ${req.path} was not handled.`);
     }
   })
-  .listen(HTTP_SERVER_PORT);
+  .listen(PORT);
 
 /**
  * Setup simple websocket server
  */
-console.log("Starting websocket server on port " + WS_SERVER_PORT);
-const wss = new WebSocket.Server({ port: WS_SERVER_PORT });
+const wss = new WebSocket.Server({ server });
 wss.on("connection", function connection(ws) {
+  console.log("New websocket connection");
   let broadcastID = null;
   ws.on("message", function incoming(message) {
     // First message received must be a JSON object that includes a broadcastID.
@@ -83,3 +83,5 @@ wss.on("connection", function connection(ws) {
 
   ws.send("something");
 });
+
+console.log("Started server on port " + PORT);
