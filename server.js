@@ -34,15 +34,18 @@ http
 
     // Add path (minus url params) and params to request obj
     req.path = req.url.split("?")[0];
-    req.params = Utils.parseUrlParams(req.url);
+    req.params = req.url.split("?").length > 1 ? Utils.parseUrlParams(req.url) : {};
 
     // Add request handlers here
-    if (req.method == "PUT" && req.path == "/upload") {
+    if (req.method == "GET" && req.path == "/") {
+      res.writeHead(200, headers);
+      res.end("Alive");
+    } else if (req.method == "PUT" && req.path == "/upload") {
       dashHandler(req, res, headers);
     } else if (req.method == "PUT" && req.path == "/stream") {
       streamHandler(req, res, headers);
     } else {
-      res.writeHead(405, headers);
+      res.writeHead(404, headers);
       res.end(`Request ${req.method} ${req.path} was not handled.`);
       console.log(`Request ${req.method} ${req.path} was not handled.`);
     }
