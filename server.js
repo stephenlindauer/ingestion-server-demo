@@ -1,14 +1,23 @@
-const express = require("express");
-const fileUpload = require("express-fileupload");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const morgan = require("morgan");
-const app = express();
+const WebSocket = require("ws");
 const http = require("http");
 const fs = require("fs");
 
-const port = 3000;
-let lastPromise = Promise.resolve();
+const HTTP_SERVER_PORT = 3000;
+const WS_SERVER_PORT = 3001;
+
+/**
+ * Utility methods
+ */
+const parseUrlParams = (url) => {
+  return JSON.parse(
+    '{"' +
+      decodeURI(url.split("?")[1])
+        .replace(/"/g, '\\"')
+        .replace(/&/g, '","')
+        .replace(/=/g, '":"') +
+      '"}'
+  );
+};
 
 const writeDataToFile = (data, filename) => {
   return new Promise((resolve, reject) => {
@@ -65,6 +74,7 @@ const handleDashRequest = (req, res, headers) => {
 /**
  * Stream+Fetch
  */
+let lastPromise = Promise.resolve();
 const handleStreamRequest = (req, res, headers) => {
   let lastPromise = Promise.resolve();
   req.on("data", function (chunk) {
@@ -79,6 +89,7 @@ const handleStreamRequest = (req, res, headers) => {
 /**
  * Setup simple http server
  */
+console.log("Starting http server on port " + HTTP_SERVER_PORT);
 http
   .createServer(function (req, res) {
     const headers = {
@@ -99,14 +110,7 @@ http
 
     // Add path (minus url params) and params to request obj
     req.path = req.url.split("?")[0];
-    req.params = JSON.parse(
-      '{"' +
-        decodeURI(req.url.split("?")[1])
-          .replace(/"/g, '\\"')
-          .replace(/&/g, '","')
-          .replace(/=/g, '":"') +
-        '"}'
-    );
+    req.params = parseUrlParams(req.url);
 
     // Add request handlers here
     if (req.method == "PUT" && req.path == "/upload") {
@@ -119,4 +123,39 @@ http
       console.log(`Request ${req.method} ${req.path} was not handled.`);
     }
   })
-  .listen(port);
+  .listen(HTTP_SERVER_PORT);
+
+/**
+ * Setup simple websocket server
+ */
+console.log("Starting websocket server on port " + WS_SERVER_PORT);
+const wss = new WebSocket.Server({ port: WS_SERVER_PORT });
+wss.on("connection", function connection(ws) {
+  let broadcastID = null;
+  ws.on("message", function incoming(message) {
+    // First message received must be a JSON object that includes a broadcastID.
+    // Once we have RUSH packaging, this would be included in the header, but this is fine for now.
+    if (broadcastID == null) {
+      const o = JSON.parse(message);
+      broadcastID = o.broadcast_id;
+      if (broadcastID) {
+        console.log("Connection established for " + broadcastID);
+      } else {
+        console.log("Missing broadcast ID in first message");
+      }
+      return;
+    }
+
+    // Parse the data
+    try {
+      // const blob = new Blob(message);
+      console.log(message);
+      const stream_filename = `uploads/${broadcastID}.webm`;
+      writeDataToFile(message, stream_filename);
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
+  ws.send("something");
+});
